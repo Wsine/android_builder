@@ -1,0 +1,23 @@
+name: android_build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v2
+      - id: get-project
+        name: Get project name
+        run: echo "::set-output name=PROJECT::$(cat project-to-build)"
+      - id: clone-project
+        name: Clone project
+        run: git clone --depth=1 ${{ steps.get-project.outputs.PROJECT }} project && cd project
+      - name: Build the app
+        run: ./gradlew build
+
