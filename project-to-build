@@ -1,1 +1,1 @@
-https://github.com/dlgt7/TVBoxOS-J-Py
+https://github.com/dlgt7/tk99-py
