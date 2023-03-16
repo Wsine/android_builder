@@ -1,0 +1,178 @@
+/* 
+ * Copyright (c) 2002-2008 LWJGL Project
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ * * Redistributions of source code must retain the above copyright
+ *   notice, this list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright
+ *   notice, this list of conditions and the following disclaimer in the
+ *   documentation and/or other materials provided with the distribution.
+ *
+ * * Neither the name of 'LWJGL' nor the names of
+ *   its contributors may be used to endorse or promote products derived
+ *   from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+package org.lwjgl.util.glu;
+
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
+
+import org.lwjgl.BufferUtils;
+
+import static org.lwjgl.opengl.GL11.*;
+
+/**
+ * Project.java
+ * <p/>
+ * <p/>
+ * Created 11-jan-2004
+ *
+ * @author Erik Duijs
+ */
+public class Project extends Util {
+
+	private static final float[] IDENTITY_MATRIX =
+		new float[] {
+			1.0f, 0.0f, 0.0f, 0.0f,
+			0.0f, 1.0f, 0.0f, 0.0f,
+			0.0f, 0.0f, 1.0f, 0.0f,
+			0.0f, 0.0f, 0.0f, 1.0f };
+
+	private static final FloatBuffer matrix = BufferUtils.createFloatBuffer(16);
+	private static final FloatBuffer finalMatrix = BufferUtils.createFloatBuffer(16);
+
+	private static final FloatBuffer tempMatrix = BufferUtils.createFloatBuffer(16);
+	private static final float[] in = new float[4];
+	private static final float[] out = new float[4];
+
+	private static final float[] forward = new float[3];
+	private static final float[] side = new float[3];
+	private static final float[] up = new float[3];
+
+	/**
+	 * Make matrix an identity matrix
+	 */
+	private static void __gluMakeIdentityf(FloatBuffer m) {
+		int oldPos = m.position();
+		m.put(IDENTITY_MATRIX);
+		m.position(oldPos);
+	}
+
+	/**
+	 * Method __gluMultMatrixVecf
+	 *
+	 * @param finalMatrix
+	 * @param in
+	 * @param out
+	 */
+	private static void __gluMultMatrixVecf(FloatBuffer m, float[] in, float[] out) {
+		for (int i = 0; i < 4; i++) {
+			out[i] =
+				in[0] * m.get(m.position() + 0*4 + i)
+					+ in[1] * m.get(m.position() + 1*4 + i)
+					+ in[2] * m.get(m.position() + 2*4 + i)
+					+ in[3] * m.get(m.position() + 3*4 + i);
+
+		}
+	}
+
+	/**
+	 * @param src
+	 * @param inverse
+	 *
+	 * @return
+	 */
+	private static boolean __gluInvertMatrixf(FloatBuffer src, FloatBuffer inverse) {
+		int i, j, k, swap;
+		float t;
+		FloatBuffer temp = Project.tempMatrix;
+
+
+		for (i = 0; i < 16; i++) {
+			temp.put(i, src.get(i + src.position()));
+		}
+		__gluMakeIdentityf(inverse);
+
+		for (i = 0; i < 4; i++) {
+			/*
+			 * * Look for largest element in column
+			 */
+			swap = i;
+			for (j = i + 1; j < 4; j++) {
+				/*
+				 * if (fabs(temp[j][i]) > fabs(temp[i][i])) { swap = j;
+				 */
+				if (Math.abs(temp.get(j*4 + i)) > Math.abs(temp.get(i* 4 + i))) {
+					swap = j;
+				}
+			}
+
+			if (swap != i) {
+				/*
+				 * * Swap rows.
+				 */
+				for (k = 0; k < 4; k++) {
+					t = temp.get(i*4 + k);
+					temp.put(i*4 + k, temp.get(swap*4 + k));
+					temp.put(swap*4 + k, t);
+
+					t = inverse.get(i*4 + k);
+					inverse.put(i*4 + k, inverse.get(swap*4 + k));
+					//inverse.put((i << 2) + k, inverse.get((swap << 2) + k));
+					inverse.put(swap*4 + k, t);
+					//inverse.put((swap << 2) + k, t);
+				}
+			}
+
+			if (temp.get(i*4 + i) == 0) {
+				/*
+				 * * No non-zero pivot. The matrix is singular, which shouldn't *
+				 * happen. This means the user gave us a bad matrix.
+				 */
+				return false;
+			}
+
+			t = temp.get(i*4 + i);
+			for (k = 0; k < 4; k++) {
+				temp.put(i*4 + k, temp.get(i*4 + k)/t);
+				inverse.put(i*4 + k, inverse.get(i*4 + k)/t);
+			}
+			for (j = 0; j < 4; j++) {
+				if (j != i) {
+					t = temp.get(j*4 + i);
+					for (k = 0; k < 4; k++) {
+						temp.put(j*4 + k, temp.get(j*4 + k) - temp.get(i*4 + k) * t);
+						inverse.put(j*4 + k, inverse.get(j*4 + k) - inverse.get(i*4 + k) * t);
+						/*inverse.put(
+							(j << 2) + k,
+							inverse.get((j << 2) + k) - inverse.get((i << 2) + k) * t);*/
+					}
+				}
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * @param a
+	 * @param b
+	 * @param r
+	 */
+	private static void _
