@@ -27,6 +27,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v2
         with:
-          name: my-build-apk
+          name: 武哥影视-apk
           path: ./**/*.apk
 
